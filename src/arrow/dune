@@ -1,0 +1,3 @@
+(library
+ (name spark_connect_arrow)
+ (public_name spark-connect.arrow))
