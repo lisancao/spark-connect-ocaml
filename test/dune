@@ -1,0 +1,19 @@
+(test
+ (name test_arrow)
+ (modules test_arrow)
+ (libraries spark-connect.arrow alcotest str)
+ (deps
+  (glob_files fixtures/*.arrow)))
+
+(test
+ (name test_unit)
+ (modules test_unit)
+ (libraries spark-connect alcotest))
+
+; Integration tests: run only when SPARK_REMOTE is set, e.g.
+;   SPARK_REMOTE=sc://localhost:15002 dune test
+
+(test
+ (name test_spark)
+ (modules test_spark)
+ (libraries spark-connect alcotest lwt lwt.unix str))

@@ -1,0 +1,17 @@
+(library
+ (name spark_connect)
+ (public_name spark-connect)
+ (libraries
+  spark_connect_proto
+  spark_connect_arrow
+  pbrt
+  h2
+  h2-lwt-unix
+  lwt
+  lwt.unix
+  uri
+  bigstringaf
+  tls
+  tls-lwt
+  ca-certs
+  domain-name))

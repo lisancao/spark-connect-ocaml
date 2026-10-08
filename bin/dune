@@ -1,0 +1,5 @@
+(executable
+ (name sparkc)
+ (public_name sparkc)
+ (package spark-connect)
+ (libraries spark-connect lwt lwt.unix))
