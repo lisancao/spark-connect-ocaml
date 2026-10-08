@@ -1,7 +1,7 @@
 (lang dune 3.0)
 (name spark-connect)
 (generate_opam_files true)
-(source (github lisanatashacao/spark-connect-ocaml))
+(source (github lisancao/spark-connect-ocaml))
 (authors "Lisa Cao")
 (maintainers "Lisa Cao")
 (license Apache-2.0)

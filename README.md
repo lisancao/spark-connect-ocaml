@@ -30,7 +30,7 @@ let () =
 Requires OCaml 5.0 or newer and opam.
 
 ```sh
-opam pin add spark-connect https://github.com/lisanatashacao/spark-connect-ocaml.git
+opam pin add spark-connect https://github.com/lisancao/spark-connect-ocaml.git
 ```
 
 Or from a checkout:

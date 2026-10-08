@@ -6,8 +6,8 @@ description:
 maintainer: ["Lisa Cao"]
 authors: ["Lisa Cao"]
 license: "Apache-2.0"
-homepage: "https://github.com/lisanatashacao/spark-connect-ocaml"
-bug-reports: "https://github.com/lisanatashacao/spark-connect-ocaml/issues"
+homepage: "https://github.com/lisancao/spark-connect-ocaml"
+bug-reports: "https://github.com/lisancao/spark-connect-ocaml/issues"
 depends: [
   "ocaml" {>= "5.0"}
   "dune" {>= "3.0"}
@@ -38,4 +38,4 @@ build: [
     "@doc" {with-doc}
   ]
 ]
-dev-repo: "git+https://github.com/lisanatashacao/spark-connect-ocaml.git"
+dev-repo: "git+https://github.com/lisancao/spark-connect-ocaml.git"
