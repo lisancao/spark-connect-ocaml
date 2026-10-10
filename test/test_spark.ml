@@ -17,6 +17,9 @@ let test_version () =
 
 let test_sql_types () =
   run (fun () ->
+      (* TIMESTAMP literals render in the session time zone; pin it so the expected
+         values don't depend on the server's local zone *)
+      Session.Conf.set (s ()) "spark.sql.session.timeZone" "UTC" >>= fun () ->
       Session.sql (s ())
         {|SELECT 1Y AS y, 2S AS sh, 3 AS i, 4L AS l, CAST(1.5 AS FLOAT) AS f, 2.5D AS d, 'x' AS str, true AS b,
                  CAST('ab' AS BINARY) AS bin, DATE'2024-02-29' AS dt, TIMESTAMP'2024-01-02 03:04:05.678' AS ts,
@@ -304,6 +307,142 @@ let test_large () =
       Alcotest.(check int) "rows" 1_000_000 (Array.length (List.hd cols));
       Alcotest.(check string) "last" "999999" (Value.to_string (List.nth cols 1).(999_999)))
 
+let contains hay needle =
+  try
+    ignore (Str.search_forward (Str.regexp_string needle) hay 0);
+    true
+  with Not_found -> false
+
+let test_more_ops () =
+  run (fun () ->
+      let sp = s () in
+      Dataframe.count (Dataframe.sample ~seed:42 (Session.range sp 1000L) 0.1) >>= fun n ->
+      Alcotest.(check bool) "sample ~10%" true (n > 50L && n < 150L);
+      Dataframe.columns (Dataframe.to_df (Session.range sp 2L) [ "n" ]) >>= fun cols ->
+      Alcotest.(check (list string)) "to_df" [ "n" ] cols;
+      Dataframe.tail (Dataframe.sort (Session.range sp 5L) [ Column.col "id" ]) 2 >>= fun rows ->
+      check_rows "tail" [ "[3]"; "[4]" ] rows;
+      let small = Dataframe.hint (Session.range sp 3L) "broadcast" [] in
+      Dataframe.count (Dataframe.join_using (Session.range sp 10L) small [ "id" ]) >>= fun n ->
+      Alcotest.(check int64) "hint join" 3L n;
+      let wide =
+        Session.create_dataframe sp ~columns:[ "id"; "a"; "b" ]
+          [ [ Value.Int 1; Value.Int 10; Value.Int 20 ]; [ Value.Int 2; Value.Int 30; Value.Int 40 ] ]
+      in
+      let long =
+        Dataframe.unpivot wide
+          ~ids:[ Column.col "id" ]
+          ~values:[ Column.col "a"; Column.col "b" ]
+          ~variable_column_name:"k" ~value_column_name:"v"
+      in
+      Dataframe.collect (Dataframe.sort long [ Column.col "id"; Column.col "k" ]) >>= fun rows ->
+      check_rows "unpivot" [ "[1, a, 10]"; "[1, b, 20]"; "[2, a, 30]"; "[2, b, 40]" ] rows;
+      Dataframe.dtypes
+        (Dataframe.to_schema (Session.range sp 3L) (Datatype.struct_ [ ("id", Datatype.double (), true) ]))
+      >>= fun d ->
+      Alcotest.(check (list (pair string string))) "to_schema" [ ("id", "double") ] d;
+      let g = Dataframe.with_column (Session.range sp 30L) "g" Column.O.(Column.col "id" % Column.int 3) in
+      Dataframe.count (Dataframe.repartition_by ~num_partitions:3 g [ Column.col "g" ]) >>= fun n ->
+      Alcotest.(check int64) "repartition_by" 30L n;
+      Dataframe.html_string ~n:2 (Session.range sp 5L) >>= fun h ->
+      Alcotest.(check bool) "html_string" true (contains h "<table");
+      let kv =
+        Session.create_dataframe sp ~columns:[ "k"; "v" ]
+          [ [ Value.String "a"; Value.Int 1 ]; [ Value.String "b"; Value.Int 2 ] ]
+      in
+      Dataframe.columns (Dataframe.transpose ~index_column:(Column.col "k") kv) >>= fun cols ->
+      Alcotest.(check bool) "transpose columns" true (List.mem "a" cols && List.mem "b" cols);
+      let holes =
+        Session.create_dataframe sp ~columns:[ "n"; "s" ]
+          [ [ Value.Int 1; Value.String "x" ]; [ Value.Null; Value.String "y" ]; [ Value.Null; Value.Null ] ]
+      in
+      Dataframe.collect (Dataframe.sort (Dataframe.na_fill ~cols:[ "n" ] holes [ Value.Int 0 ]) [ Column.col "s" ])
+      >>= fun rows ->
+      check_rows "na_fill" [ "[0, NULL]"; "[1, x]"; "[0, y]" ] rows;
+      Dataframe.count (Dataframe.na_drop holes) >>= fun n ->
+      Alcotest.(check int64) "na_drop any" 1L n;
+      Dataframe.count (Dataframe.na_drop ~cols:[ "s" ] holes) >>= fun n ->
+      Alcotest.(check int64) "na_drop subset" 2L n;
+      Dataframe.collect (Dataframe.describe (Session.range sp 10L) [ "id" ]) >>= fun rows ->
+      Alcotest.(check bool) "describe count row" true (List.mem "[count, 10]" (strs rows));
+      Dataframe.collect (Dataframe.summary (Session.range sp 10L) [ "min"; "max" ]) >>= fun rows ->
+      check_rows "summary" [ "[min, 0]"; "[max, 9]" ] rows;
+      Dataframe.is_streaming (Session.range sp 1L) >>= fun st ->
+      Alcotest.(check bool) "is_streaming" false st;
+      let df = Dataframe.filter (Session.range sp 10L) Column.O.(Column.col "id" > Column.int 3) in
+      Dataframe.semantic_hash df >>= fun h1 ->
+      Dataframe.semantic_hash df >|= fun h2 -> Alcotest.(check int) "semantic_hash stable" h1 h2)
+
+let test_columns_nested () =
+  run (fun () ->
+      let sp = s () in
+      let df =
+        Session.create_dataframe sp ~columns:[ "a"; "b"; "c" ] [ [ Value.Int 1; Value.String "z"; Value.Float 0.5 ] ]
+      in
+      Dataframe.columns (Dataframe.select df [ Column.star ]) >>= fun cols ->
+      Alcotest.(check (list string)) "star" [ "a"; "b"; "c" ] cols;
+      let t = Dataframe.alias df "t" in
+      Dataframe.columns (Dataframe.select t [ Column.star_of "t.*" ]) >>= fun cols ->
+      Alcotest.(check (list string)) "star_of" [ "a"; "b"; "c" ] cols;
+      Dataframe.columns (Dataframe.select df [ Column.regex "`(a|b)`" ]) >>= fun cols ->
+      Alcotest.(check (list string)) "regex" [ "a"; "b" ] cols;
+      let st =
+        Dataframe.select (Session.range sp 1L) [ Column.alias (Column.expr "named_struct('a', 1, 'b', 'z')") "st" ]
+      in
+      Dataframe.collect
+        (Dataframe.select st
+           [
+             Column.alias (Column.with_field (Column.col "st") "c" (Column.int 3)) "added";
+             Column.alias (Column.drop_fields (Column.col "st") [ "a" ]) "dropped";
+           ])
+      >|= fun rows -> check_rows "with_field / drop_fields" [ "[{a: 1, b: z, c: 3}, {b: z}]" ] rows)
+
+let test_catalog_cache () =
+  run (fun () ->
+      let sp = s () in
+      let module C = Session.Catalog in
+      C.current_catalog sp >>= fun c ->
+      Alcotest.(check string) "current_catalog" "spark_catalog" c;
+      C.set_current_catalog sp "spark_catalog" >>= fun () ->
+      Dataframe.count (C.list_catalogs sp) >>= fun n ->
+      Alcotest.(check bool) "list_catalogs" true (n >= 1L);
+      C.set_current_database sp "default" >>= fun () ->
+      Dataframe.collect (Dataframe.select_names (C.list_databases sp) [ "name" ]) >>= fun rows ->
+      Alcotest.(check bool) "list_databases" true (List.mem "[default]" (strs rows));
+      C.database_exists sp "default" >>= fun e ->
+      Alcotest.(check bool) "database_exists" true e;
+      C.database_exists sp "no_such_db_xyz" >>= fun e ->
+      Alcotest.(check bool) "database_exists false" false e;
+      Dataframe.count (C.list_functions ~pattern:"upper" sp) >>= fun n ->
+      Alcotest.(check bool) "list_functions" true (n >= 1L);
+      C.function_exists sp "upper" >>= fun e ->
+      Alcotest.(check bool) "function_exists" true e;
+      let df = Dataframe.with_column (Session.range sp 6L) "p" Column.O.(Column.col "id" % Column.int 2) in
+      Dataframe.write df |> fun w ->
+      Dataframe.Writer.mode w `Overwrite |> fun w ->
+      Dataframe.Writer.partition_by w [ "p" ] |> fun w ->
+      Dataframe.Writer.save_as_table w "sc_ocaml_cat" >>= fun () ->
+      Dataframe.collect (Dataframe.select_names (C.list_columns sp "sc_ocaml_cat") [ "name" ]) >>= fun rows ->
+      check_rows "list_columns" [ "[id]"; "[p]" ] rows;
+      C.cache_table sp "sc_ocaml_cat" >>= fun () ->
+      C.is_cached sp "sc_ocaml_cat" >>= fun c ->
+      Alcotest.(check bool) "is_cached" true c;
+      C.uncache_table sp "sc_ocaml_cat" >>= fun () ->
+      C.is_cached sp "sc_ocaml_cat" >>= fun c ->
+      Alcotest.(check bool) "uncached" false c;
+      C.cache_table sp "sc_ocaml_cat" >>= fun () ->
+      C.clear_cache sp >>= fun () ->
+      C.is_cached sp "sc_ocaml_cat" >>= fun c ->
+      Alcotest.(check bool) "clear_cache" false c;
+      C.refresh_table sp "sc_ocaml_cat" >>= fun () ->
+      C.refresh_by_path sp "/tmp/spark-connect-ocaml-test" >>= fun () ->
+      C.recover_partitions sp "sc_ocaml_cat" >>= fun () ->
+      Dataframe.count (Session.table sp "sc_ocaml_cat") >>= fun n ->
+      Alcotest.(check int64) "table after recover" 6L n;
+      Session.sql sp "DROP TABLE sc_ocaml_cat" >>= fun _ ->
+      Dataframe.create_or_replace_global_temp_view (Session.range sp 2L) "sc_ocaml_g" >>= fun () ->
+      C.drop_global_temp_view sp "sc_ocaml_g" >|= fun d -> Alcotest.(check bool) "drop_global_temp_view" true d)
+
 let () =
   match remote with
   | None -> print_endline "SPARK_REMOTE not set; skipping Spark integration tests"
@@ -326,5 +465,8 @@ let () =
               Alcotest.test_case "analysis" `Quick test_analysis;
               Alcotest.test_case "write and read" `Quick test_write_read;
               Alcotest.test_case "large result" `Slow test_large;
+              Alcotest.test_case "more operations" `Quick test_more_ops;
+              Alcotest.test_case "star, regex and nested fields" `Quick test_columns_nested;
             ] );
+          ("catalog", [ Alcotest.test_case "catalog and cache" `Quick test_catalog_cache ]);
         ]

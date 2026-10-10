@@ -7,7 +7,8 @@ protobuf via `ocaml-protoc`, and an Arrow IPC reader and writer included in the
 package, so there is no C dependency on libarrow or on a JVM.
 
 Works against Spark 4.x servers, including Databricks compute that exposes a
-Spark Connect endpoint. Tested against Spark 4.2.0.
+Spark Connect endpoint. The integration suite passes against Spark 4.1.3, 4.2.0
+and 4.3.0-rc1; [docs/COVERAGE.md](docs/COVERAGE.md) has the full matrix.
 
 ```ocaml
 open Lwt.Infix
@@ -70,6 +71,15 @@ Session.connect ~token:(Sys.getenv "DATABRICKS_TOKEN") ~user_id:"lisa" "sc://dbc
 
 TLS certificate validation uses the system trust store through `ca-certs`.
 
+## A real job
+
+[`examples/nyc_taxi.ml`](examples/nyc_taxi.ml) runs a batch job over a month of
+NYC yellow-cab trips (about 3 million rows): it reads Parquet and CSV, cleans
+and derives columns, joins the zone lookup, aggregates, ranks zones per borough
+with a window function, writes Parquet and reads the results back.
+[`examples/nyc_taxi/README.md`](examples/nyc_taxi/README.md) brings up a
+standalone Spark cluster (a master and two workers) with Docker and shows a run.
+
 ## What's in the box
 
 | Module | Purpose |
@@ -87,6 +97,22 @@ TLS certificate validation uses the system trust store through `ca-certs`.
 
 Everything is Lwt-based. All DataFrame transforms are pure plan construction;
 only actions talk to the server.
+
+## Compatibility and coverage
+
+[docs/COVERAGE.md](docs/COVERAGE.md) lists every relation, expression, literal
+type, command, catalog call, analyze request and config operation in the Spark
+Connect protocol, whether the client implements it, which function builds it,
+and whether a test exercises it, plus the integration suite's results per Spark
+version. It's generated, not hand-written:
+
+```sh
+dune build
+python3 scripts/coverage_matrix.py --remote 4.2.0=sc://localhost:15002   # one --remote per server
+```
+
+Everything the client implements is covered by a test. What it doesn't
+implement yet is below.
 
 ## Not covered yet
 
@@ -124,11 +150,14 @@ dune test                      # Arrow codec and unit tests, no server needed
 Integration tests need a server. Spark's official image works out of the box:
 
 ```sh
-docker run -d --name spark-connect -p 15002:15002 apache/spark:4.2.0-scala2.13-java21-python3-ubuntu \
-  /opt/spark/bin/spark-submit --class org.apache.spark.sql.connect.service.SparkConnectServer \
-  --master 'local[2]' --conf spark.connect.grpc.binding.port=15002
+docker run -d --name spark-connect -p 127.0.0.1:15002:15002 \
+  --entrypoint /opt/spark/sbin/start-connect-server.sh \
+  apache/spark:4.2.0-scala2.13-java21-python3-ubuntu --wait
 SPARK_REMOTE=sc://localhost:15002 dune test
 ```
+
+The suite pins `spark.sql.session.timeZone` to UTC where it compares timestamps,
+so it passes whatever zone the server runs in.
 
 The Arrow fixtures in `test/fixtures` were produced with `pyarrow` and cover
 every Arrow type the reader handles, plus multi-batch, legacy framing, empty,

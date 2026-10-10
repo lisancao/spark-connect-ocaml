@@ -3,3 +3,6 @@ _opam/
 *.install
 .merlin
 *.arrow.out
+
+# NYC taxi example input (examples/nyc_taxi/README.md)
+data/
