@@ -165,7 +165,9 @@ let sort_order ?(nulls : [ `First | `Last ] option) (c : t) dir : E.expression_s
   E.make_expression_sort_order ~child:c ~direction:dir
     ~null_ordering:
       (match nulls with
-      | None -> E.Sort_nulls_unspecified
+      (* Spark's defaults, as PySpark sends them: nulls first ascending, last descending *)
+      | None when dir = E.Sort_direction_descending -> E.Sort_nulls_last
+      | None -> E.Sort_nulls_first
       | Some `First -> E.Sort_nulls_first
       | Some `Last -> E.Sort_nulls_last)
     ()

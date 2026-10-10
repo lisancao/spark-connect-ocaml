@@ -1,3 +1,3 @@
 (executables
- (names smoke local_df)
+ (names smoke local_df nyc_taxi)
  (libraries spark-connect lwt lwt.unix))

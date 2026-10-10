@@ -1,0 +1,39 @@
+# A small standalone Spark cluster (one master, two workers) with a Spark Connect
+# server in front of it, for running examples/nyc_taxi.ml. TAXI_DIR is the host
+# directory holding the input files; it is mounted at /data on every node.
+#
+#   TAXI_DIR=$PWD/data docker compose -f examples/nyc_taxi/compose.yaml up -d
+name: spark-connect-ocaml-taxi
+
+x-spark: &spark
+  image: apache/spark:4.2.0-scala2.13-java21-python3-ubuntu
+  volumes:
+    - ${TAXI_DIR:?set TAXI_DIR to the directory with the taxi files}:/data
+
+services:
+  spark-master:
+    <<: *spark
+    hostname: spark-master
+    entrypoint: [/opt/spark/bin/spark-class, org.apache.spark.deploy.master.Master, --host, spark-master]
+    ports:
+      - "127.0.0.1:${MASTER_UI_PORT:-18080}:8080"   # master UI
+
+  spark-worker-1: &worker
+    <<: *spark
+    entrypoint:
+      [/opt/spark/bin/spark-class, org.apache.spark.deploy.worker.Worker, --cores, "2", --memory, 2g,
+       spark://spark-master:7077]
+    depends_on: [spark-master]
+
+  spark-worker-2: *worker
+
+  spark-connect:
+    <<: *spark
+    hostname: spark-connect
+    entrypoint:
+      [/opt/spark/sbin/start-connect-server.sh, --wait, --master, spark://spark-master:7077,
+       --conf, spark.driver.host=spark-connect, --conf, spark.executor.memory=1g]
+    depends_on: [spark-worker-1, spark-worker-2]
+    ports:
+      - "127.0.0.1:${CONNECT_PORT:-15002}:15002"  # Spark Connect
+      - "127.0.0.1:${UI_PORT:-4040}:4040"    # application UI

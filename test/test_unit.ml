@@ -90,6 +90,15 @@ let test_column_literals () =
   | Some (Unresolved_function f) -> Alcotest.(check int) "when args" 5 (List.length f.arguments)
   | _ -> Alcotest.fail "when chain"
 
+let test_sort_order_defaults () =
+  let open Proto.Expressions in
+  let nulls c = match (Column.to_sort_order c : expression_sort_order) with { null_ordering; _ } -> null_ordering in
+  (* Spark's defaults (and what PySpark sends): nulls first ascending, nulls last descending *)
+  Alcotest.(check bool) "plain column -> nulls first" true (nulls (Column.col "a") = Sort_nulls_first);
+  Alcotest.(check bool) "asc -> nulls first" true (nulls (Column.asc (Column.col "a")) = Sort_nulls_first);
+  Alcotest.(check bool) "desc -> nulls last" true (nulls (Column.desc (Column.col "a")) = Sort_nulls_last);
+  Alcotest.(check bool) "explicit asc nulls last" true (nulls (Column.asc_nulls_last (Column.col "a")) = Sort_nulls_last)
+
 let () =
   Alcotest.run "unit"
     [
@@ -97,5 +106,9 @@ let () =
       ("grpc", [ Alcotest.test_case "helpers" `Quick test_grpc_helpers ]);
       ("error", [ Alcotest.test_case "parse" `Quick test_error_parse ]);
       ("datatype", [ Alcotest.test_case "render" `Quick test_datatype ]);
-      ("column", [ Alcotest.test_case "literals and ops" `Quick test_column_literals ]);
+      ( "column",
+        [
+          Alcotest.test_case "literals and ops" `Quick test_column_literals;
+          Alcotest.test_case "sort order null defaults" `Quick test_sort_order_defaults;
+        ] );
     ]

@@ -150,8 +150,11 @@ let na_drop ?(cols = []) ?min_non_nulls t =
     (R.Drop_na (R.make_nadrop ~input:t.rel ~cols ?min_non_nulls:(Option.map Int32.of_int min_non_nulls) ()))
 
 let na_fill ?(cols = []) t (values : Value.t list) =
+  (* the server's fill accepts only long, double, string and boolean literals, so widen ints *)
+  let widen = function Value.Int i -> Value.Int64 (Int64.of_int i) | v -> v in
   of_rel_type t.client
-    (R.Fill_na (R.make_nafill ~input:t.rel ~cols ~values:(List.map Column.literal_of_value values) ()))
+    (R.Fill_na
+       (R.make_nafill ~input:t.rel ~cols ~values:(List.map (fun v -> Column.literal_of_value (widen v)) values) ()))
 
 let to_schema t (dt : P.Types.data_type) =
   of_rel_type t.client (R.To_schema (R.make_to_schema ~input:t.rel ~schema:dt ()))
@@ -259,7 +262,11 @@ let show_string ?(n = 20) ?(truncate = 20) ?(vertical = false) t : string Lwt.t 
   in
   collect rel >|= function [ r ] -> Value.to_str (Row.get r 0) | _ -> failwith "show_string: unexpected result shape"
 
-let show ?n ?truncate ?vertical t = show_string ?n ?truncate ?vertical t >|= print_string
+let show ?n ?truncate ?vertical t =
+  (* like PySpark's print(): always end with a newline so consecutive tables don't run together *)
+  show_string ?n ?truncate ?vertical t >|= fun s ->
+  print_string s;
+  if s = "" || s.[String.length s - 1] <> '\n' then print_newline ()
 
 let html_string ?(n = 20) ?(truncate = 20) t : string Lwt.t =
   let rel =
