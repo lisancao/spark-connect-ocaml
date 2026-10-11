@@ -133,6 +133,8 @@ Session.connect ~token:(Sys.getenv "DATABRICKS_TOKEN") ~user_id:"lisa" "sc://dbc
 ```
 
 TLS certificate validation uses the system trust store through `ca-certs`.
+A hostname that resolves to several addresses, such as `localhost` on a
+dual-stack host, is tried in turn until one connects.
 
 ## A real job
 

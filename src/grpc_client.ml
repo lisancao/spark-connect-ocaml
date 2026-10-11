@@ -39,15 +39,30 @@ let describe_error : H2.Client_connection.error -> string = function
 let resolve t =
   Lwt_unix.getaddrinfo t.host (string_of_int t.port) [ Unix.AI_SOCKTYPE Unix.SOCK_STREAM ] >>= function
   | [] -> transport_error "cannot resolve %s" t.host
-  | ai :: _ -> Lwt.return ai
+  | addrs -> Lwt.return addrs
 
 let open_socket t =
-  resolve t >>= fun ai ->
-  let fd = Lwt_unix.socket ai.Unix.ai_family ai.Unix.ai_socktype ai.Unix.ai_protocol in
-  Lwt.catch
-    (fun () -> Lwt_unix.connect fd ai.Unix.ai_addr >|= fun () -> fd)
-    (fun e ->
-      Lwt_unix.close fd >>= fun () -> transport_error "connect to %s failed: %s" (authority t) (Printexc.to_string e))
+  resolve t >>= fun addrs ->
+  let connect_addr ai =
+    let fd = Lwt_unix.socket ai.Unix.ai_family ai.Unix.ai_socktype ai.Unix.ai_protocol in
+    Lwt.catch
+      (fun () -> Lwt_unix.connect fd ai.Unix.ai_addr >|= fun () -> fd)
+      (fun e -> Lwt_unix.close fd >>= fun () -> Lwt.fail e)
+  in
+  (* A hostname can resolve to several addresses, e.g. [::1] before [127.0.0.1]
+     for [localhost]. Try each in order; only fail once they all have. *)
+  let rec try_addrs first_error = function
+    | [] ->
+        let detail = match first_error with Some e -> Printexc.to_string e | None -> "no address succeeded" in
+        transport_error "connect to %s failed: %s" (authority t) detail
+    | ai :: rest ->
+        Lwt.catch
+          (fun () -> connect_addr ai)
+          (fun e ->
+            let first_error = match first_error with Some _ -> first_error | None -> Some e in
+            try_addrs first_error rest)
+  in
+  try_addrs None addrs
 
 let connection_error_handler err =
   (* Connection-level errors surface per-stream too; log nothing here. *)
