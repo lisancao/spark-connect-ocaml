@@ -1,0 +1,60 @@
+name: Coverage matrix
+
+# Regenerates docs/COVERAGE.md against live servers and uploads it as an
+# artifact. Manual only: it needs two Spark servers and overwrites a
+# committed file, so it is not run on every push.
+
+on:
+  workflow_dispatch:
+
+jobs:
+  coverage:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Start Spark Connect servers
+        run: |
+          docker run -d --name spark-4.1.3 -p 127.0.0.1:15241:15002 \
+            --entrypoint /opt/spark/sbin/start-connect-server.sh \
+            apache/spark:4.1.3 --wait
+          docker run -d --name spark-4.2.0 -p 127.0.0.1:15242:15002 \
+            --entrypoint /opt/spark/sbin/start-connect-server.sh \
+            apache/spark:4.2.0 --wait
+          for port in 15241 15242; do
+            for _ in $(seq 1 90); do
+              if (exec 3<>/dev/tcp/127.0.0.1/$port) 2>/dev/null; then break; fi
+              sleep 2
+            done
+          done
+          sleep 15
+
+      - name: Set up OCaml
+        uses: ocaml/setup-ocaml@v3
+        with:
+          ocaml-compiler: "5.2.x"
+          dune-cache: true
+
+      - name: Install dependencies
+        run: opam install . --deps-only --with-test
+
+      - name: Build
+        run: opam exec -- dune build
+
+      - name: Regenerate the coverage matrix
+        run: |
+          opam exec -- python3 scripts/coverage_matrix.py \
+            --remote 4.1.3=sc://127.0.0.1:15241 \
+            --remote 4.2.0=sc://127.0.0.1:15242
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: COVERAGE.md
+          path: docs/COVERAGE.md
+
+      - name: Server state and logs
+        if: failure()
+        run: |
+          docker ps -a
+          docker logs spark-4.1.3
+          docker logs spark-4.2.0

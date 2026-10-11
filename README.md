@@ -1,5 +1,11 @@
 # spark-connect for OCaml
 
+[![CI](https://github.com/lisancao/spark-connect-ocaml/actions/workflows/ci.yml/badge.svg)](https://github.com/lisancao/spark-connect-ocaml/actions/workflows/ci.yml)
+[![Integration](https://github.com/lisancao/spark-connect-ocaml/actions/workflows/integration.yml/badge.svg)](https://github.com/lisancao/spark-connect-ocaml/actions/workflows/integration.yml)
+![OCaml](https://img.shields.io/badge/OCaml-%E2%89%A5%205.0-orange)
+![Spark](https://img.shields.io/badge/Spark-4.x-e2541b)
+![License](https://img.shields.io/badge/license-Apache--2.0-blue)
+
 A client for [Spark Connect](https://spark.apache.org/docs/latest/spark-connect-overview.html),
 the gRPC protocol that lets a thin client build DataFrame plans and run them on a
 remote Apache Spark server. Written in OCaml end to end: HTTP/2 via `h2`,
@@ -7,8 +13,10 @@ protobuf via `ocaml-protoc`, and an Arrow IPC reader and writer included in the
 package, so there is no C dependency on libarrow or on a JVM.
 
 Works against Spark 4.x servers, including Databricks compute that exposes a
-Spark Connect endpoint. The integration suite passes against Spark 4.1.3, 4.2.0
-and 4.3.0-rc1; [docs/COVERAGE.md](docs/COVERAGE.md) has the full matrix.
+Spark Connect endpoint. It is tested against Spark 4.1.3, 4.2.0 and 4.3.0-rc1
+(the release candidate); [Compatibility and coverage](#compatibility-and-coverage)
+has the version matrix and [docs/COVERAGE.md](docs/COVERAGE.md) the per-test
+results.
 
 ```ocaml
 open Lwt.Infix
@@ -26,9 +34,64 @@ let () =
   end
 ```
 
-## Install
+## Architecture
 
-Requires OCaml 5.0 or newer and opam.
+Spark Connect splits the work: a thin client builds a plan and streams it to a
+server, which plans and runs it. This client sits on the client side of that
+split, alongside the PySpark, Scala, Go, Rust and Swift clients.
+
+```mermaid
+flowchart LR
+    subgraph client["Your application"]
+        app["OCaml program"]
+        lib["spark-connect<br/>Session, Dataframe, Column, Arrow"]
+        app --> lib
+    end
+
+    other["Other Spark Connect clients<br/>PySpark, Scala, Go, Rust, Swift"]
+
+    subgraph cluster["Spark cluster"]
+        connect["Spark Connect server<br/>(the Spark driver)"]
+        catalyst["Catalyst planner and optimizer"]
+        exec["Executors"]
+        connect --> catalyst --> exec
+    end
+
+    lib -- "gRPC over HTTP/2: protobuf plans, Arrow results" --> connect
+    other -. "same Spark Connect protocol" .-> connect
+```
+
+Inside the client, DataFrame operations only build the plan. Nothing touches the
+network until an action runs.
+
+```mermaid
+flowchart TB
+    subgraph proc["Client process"]
+        api["Public API<br/>Session, Dataframe, Column, F"]
+        plan["Relation and expression tree"]
+        proto["spark_connect_proto<br/>generated protobuf messages"]
+        arroww["Arrow_writer<br/>create_dataframe, LocalRelation"]
+        grpc["grpc_client.ml<br/>HTTP/2 framing, trailers, grpc-status"]
+        api -- "builds (no I/O)" --> plan --> proto
+        arroww --> proto
+        proto -- "ExecutePlan" --> grpc
+    end
+
+    grpc -- "gRPC over HTTP/2" --> server["Spark Connect server<br/>(the Spark driver)"]
+    server -- "Arrow IPC result batches" --> arrowr["Arrow reader<br/>src/arrow"]
+    arrowr --> rows["Row and Value"]
+    rows -- "collect, show, count" --> api
+```
+
+More on the modules and the wire format is in [Design notes](#design-notes).
+
+## Requirements
+
+- OCaml 5.0 or newer, with opam.
+- A Spark 4.x Connect server to talk to. The [Tests](#tests) section shows the
+  one-command Docker setup used by CI.
+
+## Install
 
 ```sh
 opam pin add spark-connect https://github.com/lisancao/spark-connect-ocaml.git
@@ -100,6 +163,15 @@ only actions talk to the server.
 
 ## Compatibility and coverage
 
+Tested against these Spark servers; the client speaks the Spark 4.x Connect
+protocol, so the version gap is small.
+
+| Spark server | Verification |
+|---|---|
+| 4.1.3 | integration suite, run in CI |
+| 4.2.0 | integration suite, run in CI |
+| 4.3.0-rc1 | integration suite, tested against the 4.3.0 release candidate; not in CI (no Docker Hub image yet) |
+
 [docs/COVERAGE.md](docs/COVERAGE.md) lists every relation, expression, literal
 type, command, catalog call, analyze request and config operation in the Spark
 Connect protocol, whether the client implements it, which function builds it,
@@ -162,6 +234,24 @@ so it passes whatever zone the server runs in.
 The Arrow fixtures in `test/fixtures` were produced with `pyarrow` and cover
 every Arrow type the reader handles, plus multi-batch, legacy framing, empty,
 dictionary and compressed streams.
+
+## Contributing
+
+Bug reports and pull requests are welcome at
+[lisancao/spark-connect-ocaml](https://github.com/lisancao/spark-connect-ocaml).
+
+```sh
+opam install . --deps-only --with-test
+dune build @fmt        # formatting is checked in CI
+dune test              # unit tests only; see Tests above for the integration suite
+```
+
+[`ci.yml`](.github/workflows/ci.yml) builds and tests on every OCaml version
+from 5.0 to 5.3 and checks formatting;
+[`integration.yml`](.github/workflows/integration.yml) runs the integration suite
+against Spark 4.1.3 and 4.2.0 servers started with Docker. `docs/COVERAGE.md` is
+refreshed by hand from
+[`coverage.yml`](.github/workflows/coverage.yml).
 
 ## License
 
