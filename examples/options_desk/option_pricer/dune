@@ -1,0 +1,4 @@
+; Vendored from crollila/option-pricing-model-comparison (MIT); see README.md.
+
+(library
+ (name option_pricer))

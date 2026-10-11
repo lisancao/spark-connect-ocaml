@@ -24,7 +24,7 @@ package, so there is no C dependency on libarrow or on a JVM.
 Works against any Spark 4.x server that exposes a Spark Connect endpoint. It is
 tested against Spark 4.1.3, 4.2.0 and 4.3.0-rc1 (the release candidate);
 [Compatibility and coverage](#compatibility-and-coverage) has the version matrix
-and [docs/COVERAGE.md](docs/COVERAGE.md) the per-test results.
+and [Protocol coverage](https://lisancao.github.io/spark-connect-ocaml/protocol-coverage/) the per-test results.
 
 ```ocaml
 open Lwt.Infix
@@ -41,6 +41,19 @@ let () =
     Session.close spark
   end
 ```
+
+## Documentation
+
+Guides for every part of the API, plus the generated odoc reference, live at
+**<https://lisancao.github.io/spark-connect-ocaml/>**.
+
+Runnable programs in [`examples/`](examples/) cover the quickstart, SQL and views,
+window functions, reading and writing, and word count.
+[`examples/nyc_taxi`](examples/nyc_taxi/) is a batch job over a month of NYC taxi trips
+on a standalone cluster, and [`examples/options_desk`](examples/options_desk/) runs a
+small options desk (a Python data source for market prices, analytics in Spark,
+Black-Scholes pricing in OCaml, a metric view risk layer, and Delta time travel). Each
+comes with a Docker setup to run it.
 
 ## Architecture
 
@@ -182,7 +195,7 @@ protocol, so the version gap is small.
 | 4.2.0 | integration suite, run in CI |
 | 4.3.0-rc1 | integration suite, tested against the 4.3.0 release candidate; not in CI (no Docker Hub image yet) |
 
-[docs/COVERAGE.md](docs/COVERAGE.md) lists every relation, expression, literal
+[Protocol coverage](https://lisancao.github.io/spark-connect-ocaml/protocol-coverage/) lists every relation, expression, literal
 type, command, catalog call, analyze request and config operation in the Spark
 Connect protocol, whether the client implements it, which function builds it,
 and whether a test exercises it, plus the integration suite's results per Spark
@@ -259,7 +272,7 @@ dune test              # unit tests only; see Tests above for the integration su
 [`ci.yml`](.github/workflows/ci.yml) builds and tests on every OCaml version
 from 5.0 to 5.3 and checks formatting;
 [`integration.yml`](.github/workflows/integration.yml) runs the integration suite
-against Spark 4.1.3 and 4.2.0 servers started with Docker. `docs/COVERAGE.md` is
+against Spark 4.1.3 and 4.2.0 servers started with Docker. `docs/protocol-coverage.md` is
 refreshed by hand from
 [`coverage.yml`](.github/workflows/coverage.yml).
 

@@ -1,0 +1,52 @@
+# A standalone Spark 4.2 cluster (one master, two workers) behind a Spark Connect
+# server, with Delta Lake loaded and the FRED Python data source on every node.
+#
+#   docker compose -f examples/options_desk/compose.yaml up -d --build
+name: spark-connect-ocaml-desk
+
+x-spark: &spark
+  image: spark-connect-ocaml-desk:4.2.0
+  build: .
+  environment:
+    PYTHONPATH: /desk/python
+  volumes:
+    - ./:/desk/python/:ro
+    - desk-warehouse:/tmp/warehouse
+
+services:
+  spark-master:
+    <<: *spark
+    hostname: spark-master
+    entrypoint: [/opt/spark/bin/spark-class, org.apache.spark.deploy.master.Master, --host, spark-master]
+    ports:
+      - "127.0.0.1:${MASTER_UI_PORT:-18080}:8080"
+
+  spark-worker-1: &worker
+    <<: *spark
+    entrypoint:
+      [/opt/spark/bin/spark-class, org.apache.spark.deploy.worker.Worker, --cores, "2", --memory, 2g,
+       spark://spark-master:7077]
+    depends_on: [spark-master]
+
+  spark-worker-2: *worker
+
+  spark-connect:
+    <<: *spark
+    hostname: spark-connect
+    entrypoint:
+      [/opt/spark/sbin/start-connect-server.sh, --wait, --master, spark://spark-master:7077,
+       --packages, "io.delta:delta-spark_4.2_2.13:4.4.1",
+       --conf, spark.jars.ivy=/tmp/ivy,
+       --conf, spark.sql.extensions=io.delta.sql.DeltaSparkSessionExtension,
+       --conf, spark.sql.catalog.spark_catalog=org.apache.spark.sql.delta.catalog.DeltaCatalog,
+       --conf, spark.sql.warehouse.dir=/tmp/warehouse,
+       --conf, spark.driver.host=spark-connect,
+       --conf, spark.executorEnv.PYTHONPATH=/desk/python,
+       --conf, spark.executor.memory=1g]
+    depends_on: [spark-worker-1, spark-worker-2]
+    ports:
+      - "127.0.0.1:${CONNECT_PORT:-15002}:15002"
+      - "127.0.0.1:${UI_PORT:-4040}:4040"
+
+volumes:
+  desk-warehouse:

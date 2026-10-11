@@ -1,0 +1,58 @@
+site_name: Spark Connect for OCaml
+site_description: A pure-OCaml client for Apache Spark Connect.
+site_url: https://lisancao.github.io/spark-connect-ocaml/
+repo_url: https://github.com/lisancao/spark-connect-ocaml
+repo_name: lisancao/spark-connect-ocaml
+edit_uri: edit/main/docs/
+
+theme:
+  name: material
+  features:
+    - navigation.sections
+    - navigation.top
+    - navigation.instant
+    - content.code.copy
+    - search.highlight
+  palette:
+    scheme: default
+    primary: deep orange
+    accent: deep orange
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.inlinehilite
+  - pymdownx.snippets:
+      base_path: ["."]
+      check_paths: true
+
+nav:
+  - Home: index.md
+  - Installation: installation.md
+  - Quickstart: quickstart.md
+  - Guides:
+      - DataFrames: dataframes.md
+      - Columns and functions: columns-and-functions.md
+      - Results and types: types.md
+      - Data sources: data-sources.md
+      - SQL: sql.md
+      - Catalog: catalog.md
+      - Configuration and connection: configuration.md
+  - Examples: examples.md
+  - Coverage:
+      - API coverage: api-coverage.md
+      - Protocol coverage (generated): protocol-coverage.md
+  - Architecture: architecture.md
+  - Troubleshooting: troubleshooting.md
+  - API reference (odoc): https://lisancao.github.io/spark-connect-ocaml/api/spark-connect/
+  - Contributing: contributing.md

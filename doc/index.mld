@@ -1,0 +1,12 @@
+{0 spark-connect}
+
+A pure-OCaml client for {{:https://spark.apache.org/docs/latest/spark-connect-overview.html}Apache Spark Connect}.
+
+The guides live at {{:https://lisancao.github.io/spark-connect-ocaml/}lisancao.github.io/spark-connect-ocaml}.
+This is the generated API reference.
+
+{1 Modules}
+
+- {!Spark_connect} is the entry point: [Session], [Dataframe], [Column], [F], [Row], [Value], [Error].
+- {!Spark_connect_arrow} is the Arrow IPC reader and writer, usable on its own.
+- {!Spark_connect_proto} holds the generated Spark Connect protobuf types.

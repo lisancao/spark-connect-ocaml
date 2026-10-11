@@ -1,0 +1,10 @@
+spark-connect (OCaml client for Apache Spark Connect)
+Copyright 2026 Lisa Cao
+
+This product includes protocol definitions from Apache Spark
+(proto/spark/connect/*.proto), developed at The Apache Software Foundation
+(https://www.apache.org/), licensed under the Apache License, Version 2.0.
+
+examples/options_desk/option_pricer contains code from option-pricing-model-comparison
+(https://github.com/crollila/option-pricing-model-comparison), Copyright (c) 2026
+Case Ollila, licensed under the MIT License (see examples/options_desk/option_pricer/LICENSE).

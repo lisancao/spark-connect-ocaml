@@ -1,0 +1,3 @@
+(executable
+ (name options_desk)
+ (libraries spark-connect option_pricer lwt lwt.unix))

@@ -1,6 +1,6 @@
 name: Coverage matrix
 
-# Regenerates docs/COVERAGE.md against live servers and uploads it as an
+# Regenerates docs/protocol-coverage.md against live servers and uploads it as an
 # artifact. Manual only: it needs two Spark servers and overwrites a
 # committed file, so it is not run on every push.
 
@@ -49,8 +49,8 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: COVERAGE.md
-          path: docs/COVERAGE.md
+          name: protocol-coverage.md
+          path: docs/protocol-coverage.md
 
       - name: Server state and logs
         if: failure()

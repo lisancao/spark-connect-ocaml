@@ -6,3 +6,6 @@ _opam/
 
 # NYC taxi example input (examples/nyc_taxi/README.md)
 data/
+
+# Python data source in examples/options_desk
+__pycache__/

@@ -21,6 +21,7 @@
   (lwt (>= 5.0))
   uri
   bigstringaf
+  (tls (>= 1.0))
   (tls-lwt (>= 1.0))
   ca-certs
   domain-name

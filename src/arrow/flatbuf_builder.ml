@@ -3,7 +3,8 @@
 
 type t = {
   mutable buf : Bytes.t;
-  mutable space : int;  (** index of the first used byte; data lives in [space, length) *)
+  mutable space : int;
+      (** index of the first used byte; data lives in the half-open range from space to the buffer length *)
   mutable minalign : int;
   mutable vtable : int array;  (** slot -> offset (from end) of the field, 0 if absent *)
   mutable nslots : int;
