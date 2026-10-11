@@ -9,11 +9,14 @@
 ![OCaml](https://img.shields.io/badge/OCaml-%E2%89%A5%205.0-orange)
 ![Spark](https://img.shields.io/badge/Spark-4.x-e2541b)
 ![License](https://img.shields.io/badge/license-Apache--2.0-blue)
+[![Docs](https://github.com/lisancao/spark-connect-ocaml/actions/workflows/docs.yml/badge.svg)](https://github.com/lisancao/spark-connect-ocaml/actions/workflows/docs.yml)
 
 Run Apache Spark from OCaml. This client connects to a Spark server, lets you
 build DataFrames and run SQL from ordinary OCaml, and leaves the heavy lifting
 on the cluster. It is pure OCaml, with no JVM or Arrow C library to install, and
 it speaks the same protocol as PySpark.
+
+**Documentation:** <https://lisancao.github.io/spark-connect-ocaml/> — guides and the API reference.
 
 A client for [Spark Connect](https://spark.apache.org/docs/latest/spark-connect-overview.html),
 the gRPC protocol that lets a thin client build DataFrame plans and run them on a
