@@ -1,0 +1,67 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: build / OCaml ${{ matrix.ocaml-compiler }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        ocaml-compiler:
+          - "5.0.x"
+          - "5.1.x"
+          - "5.2.x"
+          - "5.3.x"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up OCaml ${{ matrix.ocaml-compiler }}
+        uses: ocaml/setup-ocaml@v3
+        with:
+          ocaml-compiler: ${{ matrix.ocaml-compiler }}
+          dune-cache: true
+
+      - name: Install dependencies
+        run: opam install . --deps-only --with-test
+
+      - name: Build
+        run: opam exec -- dune build @all
+
+      # test_arrow and test_unit need no server; test_spark skips itself
+      # unless SPARK_REMOTE is set.
+      - name: Unit tests
+        run: opam exec -- dune runtest
+
+      - name: API docs
+        if: matrix.ocaml-compiler == '5.3.x'
+        run: |
+          opam install odoc
+          opam exec -- dune build @doc
+
+  format:
+    name: ocamlformat
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up OCaml
+        uses: ocaml/setup-ocaml@v3
+        with:
+          ocaml-compiler: "5.2.x"
+          dune-cache: true
+
+      - name: Install ocamlformat
+        run: opam install ocamlformat.0.29.0
+
+      - name: Check formatting
+        run: opam exec -- dune build @fmt
