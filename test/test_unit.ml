@@ -7,7 +7,7 @@ let test_connection_string () =
   Alcotest.(check bool) "no ssl" false c.use_ssl;
   let c =
     Session.parse_connection_string
-      "sc://spark.example.com:443/;token=abc;user_id=lisa;x-databricks-cluster-id=123;session_id=s1"
+      "sc://spark.example.com:443/;token=abc;user_id=lisa;x-custom-header=123;session_id=s1"
   in
   Alcotest.(check string) "host" "spark.example.com" c.host;
   Alcotest.(check int) "port" 443 c.port;
@@ -15,7 +15,7 @@ let test_connection_string () =
   Alcotest.(check (option string)) "token" (Some "abc") c.token;
   Alcotest.(check (option string)) "user" (Some "lisa") c.user_id;
   Alcotest.(check (option string)) "session" (Some "s1") c.session_id;
-  Alcotest.(check (list (pair string string))) "headers" [ ("x-databricks-cluster-id", "123") ] c.headers;
+  Alcotest.(check (list (pair string string))) "headers" [ ("x-custom-header", "123") ] c.headers;
   let c = Session.parse_connection_string "sc://h:1/;token=t;use_ssl=false" in
   Alcotest.(check bool) "ssl override" false c.use_ssl;
   Alcotest.(check bool)
