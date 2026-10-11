@@ -23,7 +23,7 @@ jobs:
           - "4.1.3"
           - "4.2.0"
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # Start the server first so it comes up while the OCaml toolchain installs.
       - name: Start Spark Connect server (${{ matrix.spark-version }})
