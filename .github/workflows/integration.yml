@@ -56,11 +56,11 @@ jobs:
           # The port opens before the server is ready to serve plans.
           sleep 15
 
-      # Use 127.0.0.1, not localhost: the port is published on IPv4 only, and
-      # the client connects to the first address getaddrinfo returns.
+      # localhost resolves to ::1 before 127.0.0.1 on the runner, which exercises
+      # the client's multi-address connect fallback.
       - name: Integration tests
         env:
-          SPARK_REMOTE: sc://127.0.0.1:15002
+          SPARK_REMOTE: sc://localhost:15002
         run: opam exec -- dune runtest
 
       - name: Server state and logs
