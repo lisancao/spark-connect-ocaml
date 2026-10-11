@@ -1,5 +1,9 @@
 # spark-connect for OCaml
 
+<p align="center">
+  <img src="assets/banner.png" alt="Spark Connect client for OCaml" width="720">
+</p>
+
 [![CI](https://github.com/lisancao/spark-connect-ocaml/actions/workflows/ci.yml/badge.svg)](https://github.com/lisancao/spark-connect-ocaml/actions/workflows/ci.yml)
 [![Integration](https://github.com/lisancao/spark-connect-ocaml/actions/workflows/integration.yml/badge.svg)](https://github.com/lisancao/spark-connect-ocaml/actions/workflows/integration.yml)
 ![OCaml](https://img.shields.io/badge/OCaml-%E2%89%A5%205.0-orange)
