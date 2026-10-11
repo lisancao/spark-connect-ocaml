@@ -1,0 +1,41 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up OCaml
+        uses: ocaml/setup-ocaml@v3
+        with:
+          ocaml-compiler: "5.2.x"
+          dune-cache: true
+
+      - name: Install dependencies
+        run: opam install . --deps-only --with-test
+
+      - name: Build and test
+        run: |
+          opam exec -- dune build @all
+          opam exec -- dune runtest
+
+      - name: Package source tarball
+        run: |
+          git archive --format=tar.gz \
+            --prefix=spark-connect-${GITHUB_REF_NAME}/ \
+            -o spark-connect-${GITHUB_REF_NAME}.tar.gz HEAD
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: spark-connect-*.tar.gz
+          generate_release_notes: true
