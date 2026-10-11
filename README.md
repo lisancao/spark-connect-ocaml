@@ -34,6 +34,57 @@ let () =
   end
 ```
 
+## Architecture
+
+Spark Connect splits the work: a thin client builds a plan and streams it to a
+server, which plans and runs it. This client sits on the client side of that
+split, alongside the PySpark, Scala, Go, Rust and Swift clients.
+
+```mermaid
+flowchart LR
+    subgraph client["Your application"]
+        app["OCaml program"]
+        lib["spark-connect<br/>Session, Dataframe, Column, Arrow"]
+        app --> lib
+    end
+
+    other["Other Spark Connect clients<br/>PySpark, Scala, Go, Rust, Swift"]
+
+    subgraph cluster["Spark cluster"]
+        connect["Spark Connect server<br/>(the Spark driver)"]
+        catalyst["Catalyst planner and optimizer"]
+        exec["Executors"]
+        connect --> catalyst --> exec
+    end
+
+    lib -- "gRPC over HTTP/2: protobuf plans, Arrow results" --> connect
+    other -. "same Spark Connect protocol" .-> connect
+```
+
+Inside the client, DataFrame operations only build the plan. Nothing touches the
+network until an action runs.
+
+```mermaid
+flowchart TB
+    subgraph proc["Client process"]
+        api["Public API<br/>Session, Dataframe, Column, F"]
+        plan["Relation and expression tree"]
+        proto["spark_connect_proto<br/>generated protobuf messages"]
+        arroww["Arrow_writer<br/>create_dataframe, LocalRelation"]
+        grpc["grpc_client.ml<br/>HTTP/2 framing, trailers, grpc-status"]
+        api -- "builds (no I/O)" --> plan --> proto
+        arroww --> proto
+        proto -- "ExecutePlan" --> grpc
+    end
+
+    grpc -- "gRPC over HTTP/2" --> server["Spark Connect server<br/>(the Spark driver)"]
+    server -- "Arrow IPC result batches" --> arrowr["Arrow reader<br/>src/arrow"]
+    arrowr --> rows["Row and Value"]
+    rows -- "collect, show, count" --> api
+```
+
+More on the modules and the wire format is in [Design notes](#design-notes).
+
 ## Requirements
 
 - OCaml 5.0 or newer, with opam.
