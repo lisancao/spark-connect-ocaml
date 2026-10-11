@@ -53,21 +53,13 @@ let open_socket t =
      for [localhost]. Try each in order; only fail once they all have. *)
   let rec try_addrs first_error = function
     | [] ->
-        let detail =
-          match first_error with
-          | Some e -> Printexc.to_string e
-          | None -> "no address succeeded"
-        in
+        let detail = match first_error with Some e -> Printexc.to_string e | None -> "no address succeeded" in
         transport_error "connect to %s failed: %s" (authority t) detail
     | ai :: rest ->
         Lwt.catch
           (fun () -> connect_addr ai)
           (fun e ->
-            let first_error =
-              match first_error with
-              | Some _ -> first_error
-              | None -> Some e
-            in
+            let first_error = match first_error with Some _ -> first_error | None -> Some e in
             try_addrs first_error rest)
   in
   try_addrs None addrs
