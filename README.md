@@ -1,10 +1,19 @@
 # spark-connect for OCaml
 
+<p align="center">
+  <img src="assets/banner.png" alt="Spark Connect client for OCaml" width="720">
+</p>
+
 [![CI](https://github.com/lisancao/spark-connect-ocaml/actions/workflows/ci.yml/badge.svg)](https://github.com/lisancao/spark-connect-ocaml/actions/workflows/ci.yml)
 [![Integration](https://github.com/lisancao/spark-connect-ocaml/actions/workflows/integration.yml/badge.svg)](https://github.com/lisancao/spark-connect-ocaml/actions/workflows/integration.yml)
 ![OCaml](https://img.shields.io/badge/OCaml-%E2%89%A5%205.0-orange)
 ![Spark](https://img.shields.io/badge/Spark-4.x-e2541b)
 ![License](https://img.shields.io/badge/license-Apache--2.0-blue)
+
+Run Apache Spark from OCaml. This client connects to a Spark server, lets you
+build DataFrames and run SQL from ordinary OCaml, and leaves the heavy lifting
+on the cluster. It is pure OCaml, with no JVM or Arrow C library to install, and
+it speaks the same protocol as PySpark.
 
 A client for [Spark Connect](https://spark.apache.org/docs/latest/spark-connect-overview.html),
 the gRPC protocol that lets a thin client build DataFrame plans and run them on a
@@ -12,11 +21,10 @@ remote Apache Spark server. Written in OCaml end to end: HTTP/2 via `h2`,
 protobuf via `ocaml-protoc`, and an Arrow IPC reader and writer included in the
 package, so there is no C dependency on libarrow or on a JVM.
 
-Works against Spark 4.x servers, including Databricks compute that exposes a
-Spark Connect endpoint. It is tested against Spark 4.1.3, 4.2.0 and 4.3.0-rc1
-(the release candidate); [Compatibility and coverage](#compatibility-and-coverage)
-has the version matrix and [docs/COVERAGE.md](docs/COVERAGE.md) the per-test
-results.
+Works against any Spark 4.x server that exposes a Spark Connect endpoint. It is
+tested against Spark 4.1.3, 4.2.0 and 4.3.0-rc1 (the release candidate);
+[Compatibility and coverage](#compatibility-and-coverage) has the version matrix
+and [docs/COVERAGE.md](docs/COVERAGE.md) the per-test results.
 
 ```ocaml
 open Lwt.Infix
@@ -125,11 +133,11 @@ bearer `authorization` header and switching TLS on), `use_ssl`, `user_id`,
 header. Port defaults to 15002.
 
 ```ocaml
-(* Databricks *)
-Session.connect "sc://dbc-abc.cloud.databricks.com:443/;token=dapi...;x-databricks-cluster-id=0123-456789-abcdef"
+(* a bearer token plus an extra x-* request header *)
+Session.connect "sc://spark.example.com:443/;token=abc;x-request-id=42"
 
 (* explicit arguments override the string *)
-Session.connect ~token:(Sys.getenv "DATABRICKS_TOKEN") ~user_id:"lisa" "sc://dbc-abc.cloud.databricks.com:443"
+Session.connect ~token:(Sys.getenv "SPARK_CONNECT_TOKEN") ~user_id:"lisa" "sc://spark.example.com:443"
 ```
 
 TLS certificate validation uses the system trust store through `ca-certs`.
