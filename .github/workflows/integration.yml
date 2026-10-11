@@ -1,0 +1,64 @@
+name: Integration
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: integration-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  spark:
+    name: Spark ${{ matrix.spark-version }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # Only versions with a published apache/spark Docker tag. 4.3.0-rc1 is
+        # not on Docker Hub yet; add it here once it is.
+        spark-version:
+          - "4.1.3"
+          - "4.2.0"
+    steps:
+      - uses: actions/checkout@v4
+
+      # Start the server first so it comes up while the OCaml toolchain installs.
+      - name: Start Spark Connect server (${{ matrix.spark-version }})
+        run: |
+          docker run -d --name spark-connect \
+            -p 127.0.0.1:15002:15002 \
+            --entrypoint /opt/spark/sbin/start-connect-server.sh \
+            apache/spark:${{ matrix.spark-version }} --wait
+
+      - name: Set up OCaml
+        uses: ocaml/setup-ocaml@v3
+        with:
+          ocaml-compiler: "5.2.x"
+          dune-cache: true
+
+      - name: Install dependencies
+        run: opam install . --deps-only --with-test
+
+      - name: Wait for the server
+        run: |
+          for _ in $(seq 1 90); do
+            if (echo > /dev/tcp/127.0.0.1/15002) 2>/dev/null; then
+              echo "connect port is open"
+              break
+            fi
+            sleep 2
+          done
+          # The port opens before the server is ready to serve plans.
+          sleep 15
+
+      - name: Integration tests
+        env:
+          SPARK_REMOTE: sc://localhost:15002
+        run: opam exec -- dune runtest
+
+      - name: Server logs
+        if: failure()
+        run: docker logs spark-connect
