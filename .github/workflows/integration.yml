@@ -45,7 +45,9 @@ jobs:
       - name: Wait for the server
         run: |
           for _ in $(seq 1 90); do
-            if (echo > /dev/tcp/127.0.0.1/15002) 2>/dev/null; then
+            # Open a connection without sending bytes: a stray newline corrupts
+            # the HTTP/2 preface on the server side.
+            if (exec 3<>/dev/tcp/127.0.0.1/15002) 2>/dev/null; then
               echo "connect port is open"
               break
             fi
@@ -54,11 +56,15 @@ jobs:
           # The port opens before the server is ready to serve plans.
           sleep 15
 
+      # Use 127.0.0.1, not localhost: the port is published on IPv4 only, and
+      # the client connects to the first address getaddrinfo returns.
       - name: Integration tests
         env:
-          SPARK_REMOTE: sc://localhost:15002
+          SPARK_REMOTE: sc://127.0.0.1:15002
         run: opam exec -- dune runtest
 
-      - name: Server logs
+      - name: Server state and logs
         if: failure()
-        run: docker logs spark-connect
+        run: |
+          docker ps -a
+          docker logs spark-connect
