@@ -14,6 +14,9 @@ Initial release.
 
 Fixes found by the expanded integration suite:
 
+- The gRPC client connected to only the first address a hostname resolved to, so
+  `localhost` failed on dual-stack hosts where `::1` is returned first; every
+  address is now tried in turn.
 - `Dataframe.na_fill` sent whole numbers as 32-bit integer literals, which the server's fill rejects; they are now sent as longs, as PySpark does.
 - Sort orders without an explicit null ordering were sent as unspecified, so the server put nulls last in ascending sorts; they now follow Spark's defaults (nulls first ascending, last descending).
 - `Dataframe.show` now always ends with a newline, so consecutive tables don't run together.
