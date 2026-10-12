@@ -9,3 +9,6 @@ data/
 
 # Python data source in examples/options_desk
 __pycache__/
+
+# MkDocs build output
+site/
