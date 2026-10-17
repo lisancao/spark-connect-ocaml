@@ -41,7 +41,7 @@ let () =
 
 - [Installation](installation.md) — add the package and start a server.
 - [Quickstart](quickstart.md) — connect and run your first job.
-- [Protocol coverage](COVERAGE.md) — exactly which messages are implemented and
+- [Protocol coverage](protocol-coverage.md) — exactly which messages are implemented and
   which tests exercise them.
 - [API (odoc)](https://lisancao.github.io/spark-connect-ocaml/api/) — the
   generated module reference.

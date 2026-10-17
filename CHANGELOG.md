@@ -24,5 +24,5 @@ Fixes found by the expanded integration suite:
 Testing and docs:
 
 - Integration tests for every implemented message type; the suite passes against Spark 4.1.3, 4.2.0 and 4.3.0-rc1.
-- `scripts/coverage_matrix.py` generates `docs/COVERAGE.md` (protocol coverage plus per-version results).
+- `scripts/coverage_matrix.py` generates `docs/protocol-coverage.md` (protocol coverage plus per-version results).
 - `examples/nyc_taxi`: a batch job over a month of NYC taxi trips, with a Docker compose cluster to run it on.

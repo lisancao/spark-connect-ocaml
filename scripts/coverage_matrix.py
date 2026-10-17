@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate docs/COVERAGE.md: which parts of the Spark Connect protocol this client
+"""Generate docs/protocol-coverage.md: which parts of the Spark Connect protocol this client
 implements, which public function builds each one, and whether the tests exercise it.
 
     dune build
@@ -186,7 +186,7 @@ def run_suite(label, remote):
 def main():
     ap = argparse.ArgumentParser(description=(__doc__ or "").split("\n\n")[0])
     ap.add_argument("--remote", action="append", default=[], help="LABEL=sc://host:port")
-    ap.add_argument("--out", default=str(ROOT / "docs/COVERAGE.md"))
+    ap.add_argument("--out", default=str(ROOT / "docs/protocol-coverage.md"))
     args = ap.parse_args()
     if not GEN.is_dir():
         sys.exit("run `dune build` first")

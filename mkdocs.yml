@@ -45,7 +45,7 @@ nav:
   - Catalog and configuration: catalog.md
   - Errors: errors.md
   - Arrow IPC: arrow.md
-  - Protocol coverage: COVERAGE.md
+  - Protocol coverage: protocol-coverage.md
   - Troubleshooting: troubleshooting.md
   - API (odoc): https://lisancao.github.io/spark-connect-ocaml/api/
   - Contributing: contributing.md

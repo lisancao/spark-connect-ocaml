@@ -29,7 +29,7 @@ dune build @fmt
 ## Generated docs
 
 This site is MkDocs Material for the guides plus odoc for the API reference. The
-protocol-coverage page ([Protocol coverage](COVERAGE.md)) is generated, not
+protocol-coverage page ([Protocol coverage](protocol-coverage.md)) is generated, not
 hand-written:
 
 ```sh
